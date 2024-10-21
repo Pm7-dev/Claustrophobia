@@ -1,0 +1,22 @@
+name: MiniHardcore
+version: '${project.version}'
+main: me.pm7.minihardcore.MiniHardcore
+api-version: 1.19
+authors: [ _Pm7 ]
+description: Tools used for the mini hardcore minecraft servers
+commands:
+  shop:
+    description: opens the shop UI
+    usage: /<command>
+  start:
+    description: starts the server
+    usage: /<command>
+  vote:
+    description: opens the vote UI
+    usage: /<command>
+  sell:
+    description: sells all lava in your inventory
+    usage: /<command>
+  test:
+    description: test command
+    usage: /<command>
