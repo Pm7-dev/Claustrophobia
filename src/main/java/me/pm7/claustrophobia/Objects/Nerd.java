@@ -7,6 +7,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -19,9 +20,12 @@ public class Nerd implements ConfigurationSerializable {
         "Socked!", "Drat!", "Flabbergasted", "Defenestrated!", "So close...", "If only!", "Imagine dying...", "Plundered",
         "sina moli a!", "Incorrect move.", "Try again", "Insert Coin", "What a loser", "Juiced", "Continue?", "Scram!",
         "Bamboozled", "Foiled again", "...huh?", "Refund!", "Cry about it", "Not fair >:(", "Wat.", "oops.", ":(",
-        "Maybe next time", "Consider not dying", "Thanks, Obama", "D-E-D, Dead!", "Oh naurr", "dang.", "rawr~", "Good night.",
+        "Maybe next time", "Consider not dying", "Thanks, Obama", "D-E-D, Dead!", "Oh naurr", "dang.", "rawr~", "Good night!",
         "You lost the game", "Sad trombone noise", "Bwomp.", "*Vine boom noise*", "F", "Aw shucks", "You Died!", "Joever",
-        "Soiled!", "Spoiled!", "Meow :3"
+        "Soiled!", "Spoiled!", "Meow :3", "Dumb idiot", "Blockhead!", "Silly"
+    };
+    private static final String[] finalDeathMessages = { "Farewell.", "Goodbye.", "Heaven awaits you.", "No longer.",
+        "Be gone.", "It ends here.", "There's nothing left.", "Such pity.", "It's over.", "Your final breath."
     };
 
 
@@ -108,25 +112,52 @@ public class Nerd implements ConfigurationSerializable {
         p.setFlying(true);
         for (Player plr : Bukkit.getOnlinePlayers()) { plr.hidePlayer(plugin, p); }
 
+        // Add a little upwards velocity
+        Vector v = p.getVelocity().add(new Vector(0, 0.8, 0));
+        p.setVelocity(v);
+
         // Remove all player potion effects (in case they have the darkness of the border)
         Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
             for(PotionEffect pe : p.getActivePotionEffects()) { p.removePotionEffect(pe.getType()); }
         }, 10L);
 
-        // Very overly complicated way of broadcasting a little death message
-        long waitMinutes = config.getLong("deathTime");
-        if(waitMinutes == 0) {
-            p.sendTitle(ChatColor.RED + deathMessages[(int) (Math.random() * deathMessages.length)], "", 10, 70, 20);
-            votable = true; // If there is no wait, send them to the voting right away
-        } else if (waitMinutes <= 60) {
-            p.sendTitle(ChatColor.RED + deathMessages[(int) (Math.random() * deathMessages.length)], ChatColor.RED + "You will be up for vote in " + waitMinutes + " minutes", 10, 70, 20);
+        if(config.getBoolean("endgame")) {
+            p.sendTitle(ChatColor.RED + finalDeathMessages[(int) (Math.random() * finalDeathMessages.length)], ChatColor.RED + "You will not respawn.", 10, 80, 30);
+
+            // Check for a winner
+            int count = 0;
+            Nerd winner = null;
+            for(Nerd n : plugin.getNerds()) {
+                if(!n.isDead()) {
+                    count++;
+                    winner = n;
+                }
+            }
+            if(count == 1) {
+                Player win = Bukkit.getPlayer(winner.getUuid());
+                if(win != null) {
+                    Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+                        win.sendMessage(ChatColor.YELLOW + "So, it's just you, huh.");
+                        Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> win.sendMessage(ChatColor.YELLOW + "Enjoy the rest of your life, I guess."), 40L);
+                    }, 45L);
+                }
+            }
         } else {
-            int hours = (int) Math.floor((double) waitMinutes /60);
-            int minutes = (int) (waitMinutes%60);
-            if(minutes == 0) {
-                p.sendTitle(ChatColor.RED + deathMessages[(int) (Math.random() * deathMessages.length)], ChatColor.RED + "You will be up for vote in " + hours + " hours", 10, 70, 20);
+            // Sending a fun little death message
+            long waitMinutes = config.getLong("deathTime");
+            if (waitMinutes == 0) {
+                p.sendTitle(ChatColor.RED + deathMessages[(int) (Math.random() * deathMessages.length)], "", 10, 70, 20);
+                votable = true; // If there is no wait, send them to the voting right away
+            } else if (waitMinutes <= 60) {
+                p.sendTitle(ChatColor.RED + deathMessages[(int) (Math.random() * deathMessages.length)], ChatColor.RED + "You will be up for vote in " + waitMinutes + " minutes", 10, 70, 20);
             } else {
-                p.sendTitle(ChatColor.RED + deathMessages[(int) (Math.random() * deathMessages.length)], ChatColor.RED + "You will be up for vote in " + hours + " hours and " + minutes + " minutes", 10, 70, 20);
+                int hours = (int) Math.floor((double) waitMinutes / 60);
+                int minutes = (int) (waitMinutes % 60);
+                if (minutes == 0) {
+                    p.sendTitle(ChatColor.RED + deathMessages[(int) (Math.random() * deathMessages.length)], ChatColor.RED + "You will be up for vote in " + hours + " hours", 10, 70, 20);
+                } else {
+                    p.sendTitle(ChatColor.RED + deathMessages[(int) (Math.random() * deathMessages.length)], ChatColor.RED + "You will be up for vote in " + hours + " hours and " + minutes + " minutes", 10, 70, 20);
+                }
             }
         }
 
@@ -134,7 +165,7 @@ public class Nerd implements ConfigurationSerializable {
             nerd.getVotes().remove(uuid.toString());
         }
 
-        // TODO: Do some particle effect here or something
+        plugin.savePlayerData(); // Probably important enough to require this
     }
 
     public void revive() {
@@ -144,6 +175,8 @@ public class Nerd implements ConfigurationSerializable {
         deadMinutes = 0;
         votable = false;
         votes = new ArrayList<>();
+
+        outOfBorder = false;
 
         // If the player is offline, just set them to be revived once they are back online
         Player p = Bukkit.getPlayer(uuid);
@@ -155,8 +188,8 @@ public class Nerd implements ConfigurationSerializable {
         // Teleport the player to a random block around the map
         Location loc = config.getLocation("gameLocation").clone();
         double borderSize = config.getDouble("borderSize");
-        double x = (loc.getX() + (Math.random() * borderSize) - (borderSize /2) - 4);
-        double z = (loc.getZ() + (Math.random() * borderSize) - (borderSize /2) - 4);
+        double x = (loc.getX() + (Math.random() * (borderSize - 4)) - (borderSize /2));
+        double z = (loc.getZ() + (Math.random() * (borderSize - 4)) - (borderSize /2));
         loc.setYaw((float) (Math.random()*360));
         p.teleport(loc.getWorld().getHighestBlockAt((int) x, (int) z).getLocation().add(0, 2, 0));
 
@@ -177,17 +210,27 @@ public class Nerd implements ConfigurationSerializable {
         for(PotionEffect pe : p.getActivePotionEffects()) { p.removePotionEffect(pe.getType()); }
     }
 
-    public boolean addVote(UUID uuid) {
+    public short addVote(UUID uuid) {
         if(isVotable() && !votes.contains(uuid.toString())) {
             votes.add(uuid.toString());
-            return true;
+
+            int neededVotes = 0;
+            for(Nerd nerd : plugin.getNerds()) { if(!nerd.isDead()) {neededVotes++;} }
+            neededVotes = (int) (neededVotes *  ((float) config.getInt("reviveVotePercentage")/100));
+            if(neededVotes == 0) {neededVotes++;}
+            if(votes.size() >= neededVotes) {
+                revive();
+                return 1;
+            }
+
+            return 0;
         }
-        return false;
+        return -1;
     }
 
     public boolean removeVote(UUID uuid) {
         if(isVotable() && votes.contains(uuid.toString())) {
-            votes.add(uuid.toString());
+            votes.remove(uuid.toString());
             return true;
         }
         return false;

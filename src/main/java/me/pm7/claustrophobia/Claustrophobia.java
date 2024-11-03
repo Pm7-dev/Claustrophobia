@@ -1,12 +1,13 @@
 package me.pm7.claustrophobia;
 
+import me.pm7.claustrophobia.Commands.endgame;
 import me.pm7.claustrophobia.Commands.reviveplayer;
 import me.pm7.claustrophobia.Commands.startgame;
 import me.pm7.claustrophobia.Commands.vote;
 import me.pm7.claustrophobia.Listeners.Connections;
 import me.pm7.claustrophobia.Listeners.Death;
 import me.pm7.claustrophobia.Listeners.DenySpectatorInteraction;
-import me.pm7.claustrophobia.Listeners.Movement;
+import me.pm7.claustrophobia.Listeners.Border;
 import me.pm7.claustrophobia.Objects.Nerd;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -47,51 +48,41 @@ public final class Claustrophobia extends JavaPlugin {
         if(nerdSection == null) {
             data.createSection("players");
             dm.saveConfig();
-            return;
-        }
-        for (String newNerd : nerdSection.getKeys(false)) {
-            ConfigurationSection section = nerdSection.getConfigurationSection(newNerd);
-            if(section == null) { System.out.println("idk how this happened"); return; }
+        } else {
+            for (String newNerd : nerdSection.getKeys(false)) {
+                ConfigurationSection section = nerdSection.getConfigurationSection(newNerd);
+                if (section == null) {
+                    System.out.println("idk how this happened");
+                    return;
+                }
 
-            Nerd nerd = Nerd.deserialize(section);
-            nerds.add(nerd);
+                Nerd nerd = Nerd.deserialize(section);
+                nerds.add(nerd);
+            }
         }
 
         // Listeners do be registered
         getServer().getPluginManager().registerEvents(new DenySpectatorInteraction(), plugin);
         getServer().getPluginManager().registerEvents(new Connections(), plugin);
-        getServer().getPluginManager().registerEvents(new Movement(), plugin);
+        getServer().getPluginManager().registerEvents(new Border(), plugin);
         getServer().getPluginManager().registerEvents(new Death(), plugin);
         getServer().getPluginManager().registerEvents(new vote(), plugin);
         getCommand("reviveplayer").setExecutor(new reviveplayer()); // (commands also be registered)
         getCommand("startgame").setExecutor(new startgame());
+        getCommand("endgame").setExecutor(new endgame());
         getCommand("votemenu").setExecutor(new vote());
 
         // Wall managing (removeWalls also sets up the new ones because reasons)
         removeWalls();
 
         // Start the game loop and autosave
-        new BukkitRunnable() { @Override public void run() {gameLoop();}}.runTaskTimer(plugin, 20L, 5L);
-        new BukkitRunnable() { @Override public void run() {autosave();}}.runTaskTimer(plugin, 20L, 2400L);
+        new BukkitRunnable() { @Override public void run() {deadLoop();}}.runTaskTimer(plugin, 20L, 5L);
+        new BukkitRunnable() { @Override public void run() {borderLoop();}}.runTaskTimer(plugin, 20L, 5L);
+        new BukkitRunnable() { @Override public void run() {savePlayerData();}}.runTaskTimer(plugin, 20L, 2400L);
     }
 
-    @Override
-    public void onDisable() {
-        // Save player data
-        ConfigurationSection nerdsSection = data.createSection("players");
-        for (Nerd nerd : nerds) {
-            ConfigurationSection nerdSection = nerdsSection.createSection(nerd.getName());
-            for (Map.Entry<String, Object> entry : nerd.serialize().entrySet()) {
-                nerdSection.set(entry.getKey(), entry.getValue());
-            }
-        }
-        dm.saveConfig();
-    }
-
-    int tick = 1; // how scandalous
-    public void gameLoop() {
-        if(tick >= 240) { tick = 0; }
-
+    // Deals damage to players outside the border
+    public void borderLoop() {
         Location loc = config.getLocation("gameLocation");
         if(loc == null) {return;}
         double borderSize = config.getDouble("borderSize");
@@ -128,16 +119,33 @@ public final class Claustrophobia extends JavaPlugin {
                     }
                 }
             }
+        }
+    }
 
-            // Display the death time left / amount of votes a dead player has
+    // Runs dead timer and displays information to dead players
+    int deadLoopTick = 1;
+    public void deadLoop() {
+        if(config.getBoolean("endgame")) {return;}
+        if(deadLoopTick >= 240) { deadLoopTick = 0; }
+
+        Location loc = config.getLocation("gameLocation");
+        if(loc == null) {return;}
+
+        for (Nerd nerd : nerds) {
+
+            Player p = Bukkit.getPlayer(nerd.getUuid());
+            if (p == null) { continue; }
+
+            // Display the death time left / amount of votes a dead player has, and tick up their minutes every minute
             if(nerd.isDead()) {
                 if (nerd.isVotable()) {
                     int neededVotes = 0;
                     for(Nerd n : nerds) { if(!n.isDead()) {neededVotes++;} }
                     neededVotes = (int) (neededVotes *  ((float) config.getInt("reviveVotePercentage")/100));
+                    if(neededVotes == 0) {neededVotes++;}
                     p.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy(ChatColor.GREEN + "You have " + nerd.getVotes().size() + "/" + neededVotes + " votes"));
                 } else {
-                    if (tick == 1) { nerd.addMinute(); } // add a minute each minute
+                    if (deadLoopTick == 1) { nerd.addMinute(); } // add a minute each minute
                     if(nerd.getMinutes() != 0) { // They've just seen the title thingy, no need to immediately broadcast this
                         long waitMinutes = config.getLong("deathTime");
                         int hours = (int) ((waitMinutes - nerd.getMinutes()) / 60);
@@ -157,11 +165,11 @@ public final class Claustrophobia extends JavaPlugin {
                 }
             }
         }
-        tick++;
+        deadLoopTick++;
     }
 
     // Method for saving player data
-    public void autosave() {
+    public void savePlayerData() {
         ConfigurationSection nerdsSection = data.createSection("players");
         for (Nerd nerd : nerds) {
             ConfigurationSection nerdSection = nerdsSection.createSection(nerd.getName());
@@ -175,6 +183,14 @@ public final class Claustrophobia extends JavaPlugin {
     public Nerd getNerd(UUID uuid) {
         for(Nerd n : nerds) {
             if(n.getUuid().toString().equals(uuid.toString())) {
+                return n;
+            }
+        }
+        return null;
+    }
+    public Nerd getNerd(String name) {
+        for(Nerd n : nerds) {
+            if(n.getName().equals(name)) {
                 return n;
             }
         }
@@ -237,7 +253,7 @@ public final class Claustrophobia extends JavaPlugin {
     }
 
     int task = 0;
-    private void removeWalls() {
+    public void removeWalls() {
 
         Location loc = config.getLocation("gameLocation");
         double borderSize = config.getDouble("borderSize");

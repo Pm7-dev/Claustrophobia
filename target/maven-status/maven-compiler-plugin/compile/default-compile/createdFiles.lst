@@ -1,12 +1,15 @@
+me\pm7\claustrophobia\Listeners\Border.class
 me\pm7\claustrophobia\DataManager.class
+me\pm7\claustrophobia\Claustrophobia$3.class
+me\pm7\claustrophobia\Objects\VoteMenuHolder.class
 me\pm7\claustrophobia\Listeners\Connections.class
 me\pm7\claustrophobia\Objects\Nerd.class
 me\pm7\claustrophobia\Claustrophobia$2.class
-me\pm7\claustrophobia\Commands\revive.class
+me\pm7\claustrophobia\Commands\reviveplayer.class
 me\pm7\claustrophobia\Claustrophobia.class
 me\pm7\claustrophobia\Claustrophobia$1.class
 me\pm7\claustrophobia\Listeners\DenySpectatorInteraction.class
 me\pm7\claustrophobia\Commands\vote.class
 me\pm7\claustrophobia\Listeners\Death.class
+me\pm7\claustrophobia\Commands\endgame.class
 me\pm7\claustrophobia\Commands\startgame.class
-me\pm7\claustrophobia\Listeners\Movement.class

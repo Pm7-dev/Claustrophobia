@@ -33,23 +33,24 @@ public class startgame implements CommandExecutor {
             if(borderSize < 0) {borderSize *= -1;}
         }
 
-        // Set the game's location
+        // Set the game's location and border size
         Location loc = p.getLocation().getBlock().getLocation().clone();
         loc.setY(0f);
         loc.setYaw(0f);
         config.set("gameLocation", loc);
-
-        // Set the border size and start the walls
         config.set("borderSize", borderSize);
-        plugin.setupWalls();
+        plugin.saveConfig(); // game loc has to be set before walls can be set up
 
-        plugin.saveConfig();
+        plugin.removeWalls(); // it also sets up the walls, trust me
 
         // Spread all players about
         for(Player plr : Bukkit.getOnlinePlayers()) {
+            if(plr == p) {continue;}
             double x = (loc.getX() + (Math.random() * borderSize) - (borderSize /2) - 1);
             double z = (loc.getZ() + (Math.random() * borderSize) - (borderSize /2) - 1);
-            plr.teleport(loc.getWorld().getHighestBlockAt((int) x, (int) z).getLocation().add(0, 2, 0));
+            Location spawn = loc.getWorld().getHighestBlockAt((int) x, (int) z).getLocation().add(0, 2, 0);
+            spawn.setYaw((float) (Math.random()*360));
+            plr.teleport(spawn);
         }
         return true;
     }

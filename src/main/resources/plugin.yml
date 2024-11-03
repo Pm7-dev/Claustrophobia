@@ -6,8 +6,14 @@ authors: [ _Pm7 ]
 description: A cooped up minigame built to ruin friendships
 commands:
   startgame:
-    description: Starts the game at the command sender's location
-  revive:
-    description: fkjd
+    description: "Starts the game at the command sender's location with the specified world border size (default is 100)"
+    usage: /<command> <border size (optional)>
+  reviveplayer:
+    description: "To be run by operators. Skips the wait time and vote process to revive a player"
+    usage: /<command> <player>
   votemenu:
-    description: opens the vote menu
+    description: "Opens the menu where you can vote to revive dead players"
+    usage: /<command>
+  endgame:
+    description: "To be run by operators. Disables the revive system. The last one alive wins... or do they?"
+    usage: /<command>
