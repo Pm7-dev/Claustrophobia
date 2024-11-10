@@ -10,7 +10,7 @@ import java.io.InputStreamReader;
 import java.util.logging.Level;
 
 public class DataManager {
-    private Claustrophobia plugin;
+    private final Claustrophobia plugin;
     private FileConfiguration dataConfig = null;
     private File configFile = null;
 

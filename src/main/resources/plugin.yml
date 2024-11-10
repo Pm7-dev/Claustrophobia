@@ -17,3 +17,6 @@ commands:
   endgame:
     description: "To be run by operators. Disables the revive system. The last one alive wins... or do they?"
     usage: /<command>
+  claustrophobiainfo:
+    description: "Displays text that describes how to play the game"
+    usage: /<command>

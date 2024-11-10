@@ -3,8 +3,3 @@ maxDeathTime: 4320
 reviveVotePercentage: 66
 borderSize: 100
 endgame: false
-gameLocation:
-northWall:
-eastWall:
-southWall:
-westWall:

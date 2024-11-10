@@ -1,10 +1,8 @@
+# How long (in minutes) dead players have to wait before being put up for vote
 deathTime: 720
-maxDeathTime: 4320
+
+# The percentage of living players that have to vote for a dead player to be revived
 reviveVotePercentage: 66
+
+# How large the border will be. Only edit this value if you want to change the border size after starting
 borderSize: 100
-endgame: false
-gameLocation:
-northWall:
-eastWall:
-southWall:
-westWall:

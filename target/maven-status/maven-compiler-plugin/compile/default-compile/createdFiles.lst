@@ -8,7 +8,7 @@ me\pm7\claustrophobia\Claustrophobia$2.class
 me\pm7\claustrophobia\Commands\reviveplayer.class
 me\pm7\claustrophobia\Claustrophobia.class
 me\pm7\claustrophobia\Claustrophobia$1.class
-me\pm7\claustrophobia\Listeners\DenySpectatorInteraction.class
+me\pm7\claustrophobia\Listeners\SpectatorManager.class
 me\pm7\claustrophobia\Commands\vote.class
 me\pm7\claustrophobia\Listeners\Death.class
 me\pm7\claustrophobia\Commands\endgame.class

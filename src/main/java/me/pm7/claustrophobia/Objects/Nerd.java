@@ -1,19 +1,27 @@
 package me.pm7.claustrophobia.Objects;
 
 import me.pm7.claustrophobia.Claustrophobia;
+import me.pm7.claustrophobia.DataManager;
+import me.pm7.claustrophobia.Listeners.SpectatorManager;
 import org.bukkit.*;
+import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.serialization.ConfigurationSerializable;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.logging.Level;
 
 public class Nerd implements ConfigurationSerializable {
-    private final Claustrophobia plugin = Claustrophobia.getPlugin();
+    private static final Claustrophobia plugin = Claustrophobia.getPlugin();
+    private static final DataManager dm = Claustrophobia.getData();
     private final FileConfiguration config = plugin.getConfig();
 
     private static final String[] deathMessages = { "GET OUT!", "Smoked", "Smack!", "Blam!", "Oof...", "That's gotta hurt.",
@@ -27,7 +35,6 @@ public class Nerd implements ConfigurationSerializable {
     private static final String[] finalDeathMessages = { "Farewell.", "Goodbye.", "Heaven awaits you.", "No longer.",
         "Be gone.", "It ends here.", "There's nothing left.", "Such pity.", "It's over.", "Your final breath."
     };
-
 
     private String name;
     private UUID uuid;
@@ -99,18 +106,47 @@ public class Nerd implements ConfigurationSerializable {
         if(p == null) { return; }
 
         // Play a cool little effect :D
-        p.getWorld().strikeLightningEffect(p.getLocation());
+        World world = p.getWorld();
+        world.strikeLightningEffect(p.getLocation());
+
+        // Drop the player's inventory if keep inv is off
+        if(p.getWorld().getGameRuleValue(GameRule.KEEP_INVENTORY) == Boolean.FALSE) {
+            Inventory inv = p.getInventory();
+            Location loc = p.getLocation();
+            double power = 0.2D;
+            for(ItemStack item : inv.getContents()) {
+                if(item != null && item.getItemMeta() != null) {
+                    double xVel = -power + (Math.random() * (power*2));
+                    double zVel = -power + (Math.random() * (power*2));
+                    Entity dropped = world.dropItem(loc, item);
+                    dropped.setVelocity(new Vector(xVel, 0.3, zVel));
+                }
+            }
+            inv.clear();
+        }
 
         // Stop the player's interaction with anything
         p.setGameMode(GameMode.ADVENTURE);
         p.setHealth(20.0d);
         p.setFoodLevel(20);
-        p.setInvisible(true);
         p.setAllowFlight(true);
         p.setCollidable(false);
         p.setInvulnerable(true);
+        p.setInvisible(true);
         p.setFlying(true);
-        for (Player plr : Bukkit.getOnlinePlayers()) { plr.hidePlayer(plugin, p); }
+
+        // Show dead players and hide player from alive players
+        for(Player plr : Bukkit.getOnlinePlayers()) {
+            Nerd plrNerd = plugin.getNerd(plr.getUniqueId());
+            if (plrNerd != null && plrNerd.isDead()) {
+                p.showPlayer(plugin, plr);
+            } else {
+                plr.hidePlayer(plugin, p);
+            }
+        }
+
+        // Add them to the dead player team
+        SpectatorManager.addPlayerToScoreboard(p);
 
         // Add a little upwards velocity
         Vector v = p.getVelocity().add(new Vector(0, 0.8, 0));
@@ -121,7 +157,7 @@ public class Nerd implements ConfigurationSerializable {
             for(PotionEffect pe : p.getActivePotionEffects()) { p.removePotionEffect(pe.getType()); }
         }, 10L);
 
-        if(config.getBoolean("endgame")) {
+        if(dm.getConfig().getBoolean("endgame")) {
             p.sendTitle(ChatColor.RED + finalDeathMessages[(int) (Math.random() * finalDeathMessages.length)], ChatColor.RED + "You will not respawn.", 10, 80, 30);
 
             // Check for a winner
@@ -161,14 +197,35 @@ public class Nerd implements ConfigurationSerializable {
             }
         }
 
+        // Count the amount of needed votes to revive
+        int neededVotes = 0;
+        for(Nerd count : plugin.getNerds()) { if(!count.isDead()) {neededVotes++;} }
+        neededVotes = (int) (neededVotes *  ((float) config.getInt("reviveVotePercentage")/100));
+        if(neededVotes == 0) {neededVotes++;}
+
         for(Nerd nerd : plugin.getNerds()) {
+
+            // Once someone dies, their votes should not count
             nerd.getVotes().remove(uuid.toString());
+
+            // Check all nerds to see if this death pushed them over the line to be revived
+            if(votes.size() >= neededVotes) { revive(); }
         }
 
-        plugin.savePlayerData(); // Probably important enough to require this
+        plugin.savePlayerData(); // Probably important enough of a change to require this
     }
 
     public void revive() {
+
+        // If the player is offline, just set them to be revived once they are back online
+        Player p = Bukkit.getPlayer(uuid);
+        if(p == null) {
+            revived = true;
+            return;
+        }
+
+        // puts the player at a random safe spot on the map
+        spawn();
 
         // Revived players will no longer be dead, and should not be votable anymore
         dead = false;
@@ -178,36 +235,43 @@ public class Nerd implements ConfigurationSerializable {
 
         outOfBorder = false;
 
-        // If the player is offline, just set them to be revived once they are back online
-        Player p = Bukkit.getPlayer(uuid);
-        if(p == null) {
-            revived = true;
-            return;
-        }
-
-        // Teleport the player to a random block around the map
-        Location loc = config.getLocation("gameLocation").clone();
-        double borderSize = config.getDouble("borderSize");
-        double x = (loc.getX() + (Math.random() * (borderSize - 4)) - (borderSize /2));
-        double z = (loc.getZ() + (Math.random() * (borderSize - 4)) - (borderSize /2));
-        loc.setYaw((float) (Math.random()*360));
-        p.teleport(loc.getWorld().getHighestBlockAt((int) x, (int) z).getLocation().add(0, 2, 0));
-
         // Let them know what happened
         p.sendTitle(ChatColor.GREEN + "You have been revived!", "", 10, 70, 20);
 
+        // Let the world know what happened
+        for (Player plr : Bukkit.getOnlinePlayers()) {
+            plr.sendMessage(ChatColor.YELLOW + name + " has been revived!");
+            plr.playSound(p, Sound.BLOCK_NOTE_BLOCK_HAT, 500, 0.5f);
+        }
+
         // Allow them to interact with the world again
         p.setGameMode(GameMode.SURVIVAL);
-        p.setInvisible(false);
         p.setAllowFlight(false);
         p.setHealth(20.0d);
         p.setFoodLevel(20);
         p.setCollidable(true);
         p.setInvulnerable(false);
-        for (Player plr : Bukkit.getOnlinePlayers()) { plr.showPlayer(plugin, p); }
+        p.setInvisible(false);
+        p.setFireTicks(0);
+        p.setFreezeTicks(0);
 
-        // Remove all player potion effects (in case they have the darkness of the border)
+        // Remove them from the dead player team
+        SpectatorManager.removePlayerFromScoreboard(p);
+
+        // Remove all player potion effects (in case they have the darkness of the border for some reason)
         for(PotionEffect pe : p.getActivePotionEffects()) { p.removePotionEffect(pe.getType()); }
+
+        // Hide dead players and show player to other alive players
+        for(Player plr : Bukkit.getOnlinePlayers()) {
+            Nerd plrNerd = plugin.getNerd(plr.getUniqueId());
+            if (plrNerd != null && plrNerd.isDead()) {
+                p.hidePlayer(plugin, plr);
+            } else {
+                plr.showPlayer(plugin, p);
+            }
+        }
+
+        plugin.savePlayerData(); // Probably important enough of a change to require this
     }
 
     public short addVote(UUID uuid) {
@@ -236,10 +300,34 @@ public class Nerd implements ConfigurationSerializable {
         return false;
     }
 
+    public void spawn() {
+        Player p = Bukkit.getPlayer(uuid);
+        if(p == null) { return; }
+
+        Location gameLoc = dm.getConfig().getLocation("gameLocation");
+        if(gameLoc == null || gameLoc.getWorld() == null) {return;}
+
+        Location loc = gameLoc.clone();
+        double borderSize = config.getDouble("borderSize");
+        double x = (loc.getX() + (Math.random() * (borderSize - 4)) - (borderSize /2));
+        double z = (loc.getZ() + (Math.random() * (borderSize - 4)) - (borderSize /2));
+
+        Block ground = loc.getWorld().getHighestBlockAt((int) x, (int) z);
+        while(!ground.getType().isSolid() && ground.getType() != Material.WATER) { // water sources are really easy
+            x = (loc.getX() + (Math.random() * (borderSize - 4)) - (borderSize/2));
+            z = (loc.getZ() + (Math.random() * (borderSize - 4)) - (borderSize/2));
+            ground = loc.getWorld().getHighestBlockAt((int) x, (int) z);
+        }
+
+        Location tpLoc = ground.getLocation().add(0, 2, 0);
+        tpLoc.setYaw(((float) Math.random()*360) - 180);
+        p.teleport(tpLoc);
+    }
+
     // How we load player data from config stuff
     public static Nerd deserialize(ConfigurationSection serializedData) {
         if (serializedData == null) {
-            System.out.println("Serialized data is null! Cannot load Nerd");
+            plugin.getLogger().log(Level.WARNING, "Serialized data is null! Cannot load Nerd");
             return null;
         }
 

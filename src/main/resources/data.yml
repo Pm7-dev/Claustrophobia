@@ -1,1 +1,7 @@
 players:
+gameLocation:
+northWall:
+eastWall:
+southWall:
+westWall:
+endgame: false

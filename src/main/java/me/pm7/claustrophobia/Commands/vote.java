@@ -1,6 +1,7 @@
 package me.pm7.claustrophobia.Commands;
 
 import me.pm7.claustrophobia.Claustrophobia;
+import me.pm7.claustrophobia.DataManager;
 import me.pm7.claustrophobia.Objects.Nerd;
 import me.pm7.claustrophobia.Objects.VoteMenuHolder;
 import org.bukkit.Bukkit;
@@ -35,6 +36,7 @@ import java.util.Collections;
 
 public class vote implements CommandExecutor, Listener {
     private final Claustrophobia plugin = Claustrophobia.getPlugin();
+    private final DataManager dm = Claustrophobia.getData();
     private final FileConfiguration config = plugin.getConfig();
 
     @Override
@@ -45,7 +47,7 @@ public class vote implements CommandExecutor, Listener {
         if(nerd.isDead()) {p.sendMessage(ChatColor.RED + "Only living players can vote"); return true;}
 
         // endgame
-        if(config.getBoolean("endgame")) {
+        if(dm.getConfig().getBoolean("endgame")) {
             p.sendMessage(ChatColor.RED + "You cannot save anyone now.");
             return true;
         }
@@ -53,7 +55,7 @@ public class vote implements CommandExecutor, Listener {
         // All of this is just for determining the size of the inventory lol
         int deadPlayers = 0;
         for(Nerd n : plugin.getNerds()) { if(n.isVotable()) { deadPlayers++; } }
-        if(deadPlayers == 0) {p.sendMessage(ChatColor.RED + "Nobody is votable yet"); return true;} // why
+        if(deadPlayers == 0) {p.sendMessage(ChatColor.RED + "Nobody is votable"); return true;} // why
 
         sendVoteMenu(p);
 
@@ -84,7 +86,6 @@ public class vote implements CommandExecutor, Listener {
 
         // Actually handle the voting
         boolean revived = false;
-        p.playSound(p, Sound.BLOCK_NOTE_BLOCK_HAT, 500, 0.5f);
         if(item.getType() == Material.SLIME_BALL) {
             int success = clicked.addVote(n.getUuid());
             if(success >= 0) { p.sendMessage(ChatColor.GREEN + "Successfully voted for " + clicked.getName()); }
@@ -97,6 +98,9 @@ public class vote implements CommandExecutor, Listener {
             if(success) { p.sendMessage(ChatColor.GREEN + "Successfully removed vote from " + clicked.getName()); }
             else { p.sendMessage(ChatColor.RED + "There was an error with vote removal! Try reopening the menu"); }
         } else { return; }
+
+        // play funny click sound
+        p.playSound(p, Sound.BLOCK_NOTE_BLOCK_HAT, 500, 0.5f);
 
         // If the player gets revived from this, reload the voting menu to not include that player
         if(revived) {

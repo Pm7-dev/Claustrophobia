@@ -26,7 +26,7 @@ public class reviveplayer implements CommandExecutor {
                 n.revive();
             }
             else {
-                p.sendMessage(ChatColor.RED + "Could not find player " + n.getName());
+                p.sendMessage(ChatColor.RED + "Could not find player " + args[0]);
             }
         }
 

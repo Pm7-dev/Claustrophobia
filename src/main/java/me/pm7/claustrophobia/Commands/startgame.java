@@ -1,9 +1,12 @@
 package me.pm7.claustrophobia.Commands;
 
 import me.pm7.claustrophobia.Claustrophobia;
+import me.pm7.claustrophobia.DataManager;
+import me.pm7.claustrophobia.Objects.Nerd;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -14,6 +17,7 @@ import org.jetbrains.annotations.NotNull;
 public class startgame implements CommandExecutor {
     private final Claustrophobia plugin = Claustrophobia.getPlugin();
     private final FileConfiguration config = plugin.getConfig();
+    private final DataManager dm = Claustrophobia.getData();
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
@@ -37,21 +41,27 @@ public class startgame implements CommandExecutor {
         Location loc = p.getLocation().getBlock().getLocation().clone();
         loc.setY(0f);
         loc.setYaw(0f);
-        config.set("gameLocation", loc);
+        dm.getConfig().set("gameLocation", loc);
         config.set("borderSize", borderSize);
         plugin.saveConfig(); // game loc has to be set before walls can be set up
 
+        // Do the border in the nether maybe
+        World nether = Bukkit.getWorld(loc.getWorld().getName() + "_nether");
+        if(nether != null) {
+            nether.getWorldBorder().setCenter(loc.getX(), loc.getZ());
+            nether.getWorldBorder().setSize(borderSize);
+        }
+
         plugin.removeWalls(); // it also sets up the walls, trust me
 
-        // Spread all players about
+        // Spread all players about (except the guy who started the server)
         for(Player plr : Bukkit.getOnlinePlayers()) {
-            if(plr == p) {continue;}
-            double x = (loc.getX() + (Math.random() * borderSize) - (borderSize /2) - 1);
-            double z = (loc.getZ() + (Math.random() * borderSize) - (borderSize /2) - 1);
-            Location spawn = loc.getWorld().getHighestBlockAt((int) x, (int) z).getLocation().add(0, 2, 0);
-            spawn.setYaw((float) (Math.random()*360));
-            plr.teleport(spawn);
+            Nerd n = plugin.getNerd(plr.getUniqueId());
+            if(n == null || plr == p) { continue; }
+            n.spawn();
         }
+
+        Bukkit.broadcastMessage(ChatColor.RED + "Claustrophobia started!");
         return true;
     }
 }

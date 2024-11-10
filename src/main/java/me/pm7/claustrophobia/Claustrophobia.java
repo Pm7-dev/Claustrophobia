@@ -1,12 +1,9 @@
 package me.pm7.claustrophobia;
 
-import me.pm7.claustrophobia.Commands.endgame;
-import me.pm7.claustrophobia.Commands.reviveplayer;
-import me.pm7.claustrophobia.Commands.startgame;
-import me.pm7.claustrophobia.Commands.vote;
+import me.pm7.claustrophobia.Commands.*;
 import me.pm7.claustrophobia.Listeners.Connections;
 import me.pm7.claustrophobia.Listeners.Death;
-import me.pm7.claustrophobia.Listeners.DenySpectatorInteraction;
+import me.pm7.claustrophobia.Listeners.SpectatorManager;
 import me.pm7.claustrophobia.Listeners.Border;
 import me.pm7.claustrophobia.Objects.Nerd;
 import net.md_5.bungee.api.ChatMessageType;
@@ -28,7 +25,7 @@ import java.util.*;
 public final class Claustrophobia extends JavaPlugin {
 
     private static Claustrophobia plugin;
-    public DataManager dm;
+    public static DataManager dm;
     private static FileConfiguration data;
     private static FileConfiguration config;
 
@@ -39,8 +36,9 @@ public final class Claustrophobia extends JavaPlugin {
         data = dm.getConfig();
         config = getConfig();
 
-        config.options().copyDefaults();
+        config.options().copyDefaults(true);
         saveDefaultConfig();
+        saveConfig();
 
         // Load config data
         nerds = new ArrayList<>();
@@ -51,31 +49,29 @@ public final class Claustrophobia extends JavaPlugin {
         } else {
             for (String newNerd : nerdSection.getKeys(false)) {
                 ConfigurationSection section = nerdSection.getConfigurationSection(newNerd);
-                if (section == null) {
-                    System.out.println("idk how this happened");
-                    return;
-                }
+                if (section == null) { return;}
 
                 Nerd nerd = Nerd.deserialize(section);
                 nerds.add(nerd);
             }
         }
 
-        // Listeners do be registered
-        getServer().getPluginManager().registerEvents(new DenySpectatorInteraction(), plugin);
+        // Listeners and commands do be registered
+        getServer().getPluginManager().registerEvents(new SpectatorManager(), plugin);
         getServer().getPluginManager().registerEvents(new Connections(), plugin);
         getServer().getPluginManager().registerEvents(new Border(), plugin);
         getServer().getPluginManager().registerEvents(new Death(), plugin);
         getServer().getPluginManager().registerEvents(new vote(), plugin);
-        getCommand("reviveplayer").setExecutor(new reviveplayer()); // (commands also be registered)
-        getCommand("startgame").setExecutor(new startgame());
-        getCommand("endgame").setExecutor(new endgame());
         getCommand("votemenu").setExecutor(new vote());
+        getCommand("endgame").setExecutor(new endgame());
+        getCommand("startgame").setExecutor(new startgame());
+        getCommand("reviveplayer").setExecutor(new reviveplayer());
+        getCommand("claustrophobiainfo").setExecutor(new claustrophobiainfo());
 
         // Wall managing (removeWalls also sets up the new ones because reasons)
         removeWalls();
 
-        // Start the game loop and autosave
+        // Start the game, border damage, and autosave loops
         new BukkitRunnable() { @Override public void run() {deadLoop();}}.runTaskTimer(plugin, 20L, 5L);
         new BukkitRunnable() { @Override public void run() {borderLoop();}}.runTaskTimer(plugin, 20L, 5L);
         new BukkitRunnable() { @Override public void run() {savePlayerData();}}.runTaskTimer(plugin, 20L, 2400L);
@@ -83,7 +79,7 @@ public final class Claustrophobia extends JavaPlugin {
 
     // Deals damage to players outside the border
     public void borderLoop() {
-        Location loc = config.getLocation("gameLocation");
+        Location loc = data.getLocation("gameLocation");
         if(loc == null) {return;}
         double borderSize = config.getDouble("borderSize");
 
@@ -125,10 +121,10 @@ public final class Claustrophobia extends JavaPlugin {
     // Runs dead timer and displays information to dead players
     int deadLoopTick = 1;
     public void deadLoop() {
-        if(config.getBoolean("endgame")) {return;}
+        if(dm.getConfig().getBoolean("endgame")) {return;}
         if(deadLoopTick >= 240) { deadLoopTick = 0; }
 
-        Location loc = config.getLocation("gameLocation");
+        Location loc = data.getLocation("gameLocation");
         if(loc == null) {return;}
 
         for (Nerd nerd : nerds) {
@@ -146,21 +142,19 @@ public final class Claustrophobia extends JavaPlugin {
                     p.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy(ChatColor.GREEN + "You have " + nerd.getVotes().size() + "/" + neededVotes + " votes"));
                 } else {
                     if (deadLoopTick == 1) { nerd.addMinute(); } // add a minute each minute
-                    if(nerd.getMinutes() != 0) { // They've just seen the title thingy, no need to immediately broadcast this
-                        long waitMinutes = config.getLong("deathTime");
-                        int hours = (int) ((waitMinutes - nerd.getMinutes()) / 60);
-                        int minutes = (int) ((waitMinutes - nerd.getMinutes()) % 60);
-                        if (minutes == 0) {
-                            String hrsTxt;
-                            if(hours == 1) {hrsTxt = hours + " hour";} else {hrsTxt = hours + " hours";}
-                            p.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy(ChatColor.GREEN + "You will be up for vote in " + hrsTxt));
-                        } else {
-                            String hrsTxt;
-                            if(hours == 1) {hrsTxt = hours + " hour";} else {hrsTxt = hours + " hours";}
-                            String minsTxt;
-                            if(minutes == 1) {minsTxt = minutes + " minute";} else {minsTxt = minutes + " minutes";}
-                            p.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy(ChatColor.GREEN + "You will be up for vote in " + hrsTxt + " and " + minsTxt));
-                        }
+                    long waitMinutes = config.getLong("deathTime");
+                    int hours = (int) ((waitMinutes - nerd.getMinutes()) / 60);
+                    int minutes = (int) ((waitMinutes - nerd.getMinutes()) % 60);
+                    if (minutes == 0) {
+                        String hrsTxt;
+                        if(hours == 1) {hrsTxt = hours + " hour";} else {hrsTxt = hours + " hours";}
+                        p.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy(ChatColor.GREEN + "You will be up for vote in " + hrsTxt));
+                    } else {
+                        String hrsTxt;
+                        if(hours == 1) {hrsTxt = hours + " hour";} else {hrsTxt = hours + " hours";}
+                        String minsTxt;
+                        if(minutes == 1) {minsTxt = minutes + " minute";} else {minsTxt = minutes + " minutes";}
+                        p.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy(ChatColor.GREEN + "You will be up for vote in " + hrsTxt + " and " + minsTxt));
                     }
                 }
             }
@@ -201,61 +195,66 @@ public final class Claustrophobia extends JavaPlugin {
     public List<Nerd> getNerds() {return nerds;}
 
     public static Claustrophobia getPlugin() { return plugin; }
+    public static DataManager getData() { return dm; }
 
 
     BlockDisplay northWall, eastWall, southWall, westWall; // Z-, X+. Z+, X-
     public void setupWalls() {
-        Location loc = config.getLocation("gameLocation");
+        Location loc = data.getLocation("gameLocation");
         if(loc == null) {return;}
         World w = loc.getWorld();
         double borderSize = config.getDouble("borderSize");
 
-        Location nLoc = loc.clone().subtract(0, 500, borderSize/2);
+        Location nLoc = loc.clone().subtract(0, 0, borderSize/2 - 0.03);
+        nLoc.setY(-250);
         northWall = (BlockDisplay) w.spawnEntity(nLoc, EntityType.BLOCK_DISPLAY);
         northWall.setBlock(Material.NETHER_PORTAL.createBlockData());
-        northWall.setTransformation(new Transformation(new Vector3f((float) (-borderSize/2), 0, 0), new AxisAngle4f(), new Vector3f((float) borderSize, 1000000, 0.01f), new AxisAngle4f()));
+        northWall.setTransformation(new Transformation(new Vector3f((float) -(borderSize-0.061125)/2, 0, 0), new AxisAngle4f(), new Vector3f((float) (borderSize-0.061125), 1000000, 0.001f), new AxisAngle4f()));
         northWall.setShadowRadius(0f);
         northWall.setViewRange(1000000000);
         northWall.setBrightness(new Display.Brightness(15, 15));
-        config.set("northWall", northWall.getUniqueId().toString());
+        data.set("northWall", northWall.getUniqueId().toString());
 
-        Location eLoc = loc.clone().add(borderSize/2, -500, 0);
+        Location eLoc = loc.clone().add(borderSize/2 - 0.03, 0, 0);
+        eLoc.setY(-250);
         eastWall = (BlockDisplay) w.spawnEntity(eLoc, EntityType.BLOCK_DISPLAY);
         eastWall.setRotation(90.0f, 0f);
         eastWall.setBlock(Material.NETHER_PORTAL.createBlockData());
-        eastWall.setTransformation(new Transformation(new Vector3f((float) (-borderSize/2), 0, 0), new AxisAngle4f(), new Vector3f((float) borderSize, 1000000, 0.01f), new AxisAngle4f()));
+        eastWall.setTransformation(new Transformation(new Vector3f((float) -(borderSize-0.061125)/2, 0, 0), new AxisAngle4f(), new Vector3f((float) (borderSize-0.061125), 1000000, 0.001f), new AxisAngle4f()));
         eastWall.setShadowRadius(0f);
         eastWall.setViewRange(1000000000);
         eastWall.setBrightness(new Display.Brightness(15, 15));
-        config.set("eastWall", eastWall.getUniqueId().toString());
+        data.set("eastWall", eastWall.getUniqueId().toString());
 
-        Location sLoc = loc.clone().add(0, -500, borderSize/2);
+        Location sLoc = loc.clone().add(0, 0, borderSize/2 - 0.03);
+        sLoc.setY(-250);
         southWall = (BlockDisplay) w.spawnEntity(sLoc, EntityType.BLOCK_DISPLAY);
         southWall.setRotation(180.0f, 0f);
         southWall.setBlock(Material.NETHER_PORTAL.createBlockData());
-        southWall.setTransformation(new Transformation(new Vector3f((float) (-borderSize/2), 0, 0), new AxisAngle4f(), new Vector3f((float) borderSize, 1000000, 0.01f), new AxisAngle4f()));
+        southWall.setTransformation(new Transformation(new Vector3f((float) -(borderSize-0.061125)/2, 0, 0), new AxisAngle4f(), new Vector3f((float) (borderSize-0.061125), 1000000, 0.001f), new AxisAngle4f()));
         southWall.setShadowRadius(0f);
         southWall.setViewRange(1000000000);
         southWall.setBrightness(new Display.Brightness(15, 15));
-        config.set("southWall", southWall.getUniqueId().toString());
+        data.set("southWall", southWall.getUniqueId().toString());
 
-        Location wLoc = loc.clone().subtract(borderSize/2, 500, 0);
+        Location wLoc = loc.clone().subtract(borderSize/2 - 0.03, 0, 0);
+        wLoc.setY(-250);
         westWall = (BlockDisplay) w.spawnEntity(wLoc, EntityType.BLOCK_DISPLAY);
         westWall.setRotation(270.0f, 0f);
         westWall.setBlock(Material.NETHER_PORTAL.createBlockData());
-        westWall.setTransformation(new Transformation(new Vector3f((float) (-borderSize/2), 0, 0), new AxisAngle4f(), new Vector3f((float) borderSize, 1000000, 0.01f), new AxisAngle4f()));
+        westWall.setTransformation(new Transformation(new Vector3f((float) -(borderSize-0.061125)/2, 0, 0), new AxisAngle4f(), new Vector3f((float) (borderSize-0.061125), 1000000, 0.001f), new AxisAngle4f()));
         westWall.setShadowRadius(0f);
         westWall.setViewRange(1000000000);
         westWall.setBrightness(new Display.Brightness(15, 15));
-        config.set("westWall", westWall.getUniqueId().toString());
+        data.set("westWall", westWall.getUniqueId().toString());
 
-        saveConfig();
+        dm.saveConfig();
     }
 
     int task = 0;
     public void removeWalls() {
 
-        Location loc = config.getLocation("gameLocation");
+        Location loc = data.getLocation("gameLocation");
         double borderSize = config.getDouble("borderSize");
         if(loc == null) {return;}
         World world = loc.getWorld();
@@ -275,17 +274,17 @@ public final class Claustrophobia extends JavaPlugin {
                 for(Entity e1 : world.getEntities()) {
                     String uuid = e1.getUniqueId().toString();
 
-                    if(config.getString("northWall") != null) {
-                        if(uuid.equals(config.getString("northWall"))) { e1.remove();continue;  }
+                    if(data.getString("northWall") != null) {
+                        if(uuid.equals(data.getString("northWall"))) { e1.remove();continue;  }
                     }
-                    if(config.getString("eastWall") != null) {
-                        if (uuid.equals(config.getString("eastWall"))) { e1.remove(); continue;  }
+                    if(data.getString("eastWall") != null) {
+                        if (uuid.equals(data.getString("eastWall"))) { e1.remove(); continue;  }
                     }
-                    if(config.getString("southWall") != null) {
-                        if (uuid.equals(config.getString("southWall"))) { e1.remove(); continue;  }
+                    if(data.getString("southWall") != null) {
+                        if (uuid.equals(data.getString("southWall"))) { e1.remove(); continue;  }
                     }
-                    if(config.getString("westWall") != null) {
-                        if (uuid.equals(config.getString("westWall"))) { e1.remove(); }
+                    if(data.getString("westWall") != null) {
+                        if (uuid.equals(data.getString("westWall"))) { e1.remove(); }
                     }
                 }
 
