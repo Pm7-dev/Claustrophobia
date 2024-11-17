@@ -13,6 +13,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryInteractEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.ScoreboardManager;
 import org.bukkit.scoreboard.Team;
 
 // Funny class that blocks the spectators from actually doing anything.
@@ -20,26 +21,34 @@ import org.bukkit.scoreboard.Team;
 public class SpectatorManager implements Listener {
     private final Claustrophobia plugin = Claustrophobia.getPlugin();
 
-    // Scoreboard team stuff for when we want to make translucent players
-    private static final org.bukkit.scoreboard.ScoreboardManager manager = Bukkit.getScoreboardManager();
     private static Scoreboard board;
-    private static Team team;
+    private static Team dead;
+    private static Team alive;
 
-    public static void addPlayerToScoreboard(Player p) {
-        if(team == null) {
+    public static void addPlayerToDeathScoreboard(Player p) {
+        if(dead == null || alive == null) {
+            ScoreboardManager manager = Bukkit.getScoreboardManager();
             board = manager.getNewScoreboard();
-            team = board.registerNewTeam("spectator");
-            team.setCanSeeFriendlyInvisibles(true);
-            team.setColor(ChatColor.GRAY);
+
+            dead = board.registerNewTeam("dead");
+            dead.setCanSeeFriendlyInvisibles(true);
+            dead.setColor(ChatColor.GRAY);
+
+            alive = board.registerNewTeam("alive"); // maybe this fixes things?
+            alive.setCanSeeFriendlyInvisibles(false);
+            alive.setAllowFriendlyFire(true);
+            alive.setColor(ChatColor.WHITE);
         }
         p.setScoreboard(board);
-        team.addEntry(p.getName());
+        if(alive.hasEntry(p.getName())) { alive.removeEntry(p.getName()); }
+        if(!dead.hasEntry(p.getName())) { dead.addEntry(p.getName()); }
     }
 
-    public static void removePlayerFromScoreboard(Player p) {
-        if(team == null) { return; }
+    public static void removePlayerFromDeathScoreboard(Player p) {
+        if(dead == null) { return; }
         p.setScoreboard(board);
-        team.removeEntry(p.getName());
+        if(dead.hasEntry(p.getName())) { dead.removeEntry(p.getName()); }
+        if(!alive.hasEntry(p.getName())) { alive.addEntry(p.getName()); }
     }
 
     @EventHandler
@@ -47,20 +56,25 @@ public class SpectatorManager implements Listener {
         Nerd nerd = plugin.getNerd(e.getPlayer().getUniqueId());
         if(nerd == null) {return; }
         if(nerd.isDead()) {
-            addPlayerToScoreboard(e.getPlayer());
+            addPlayerToDeathScoreboard(e.getPlayer());
         } else {
-            removePlayerFromScoreboard(e.getPlayer());
+            removePlayerFromDeathScoreboard(e.getPlayer());
         }
     }
 
     // Force spectators to fly
-    @EventHandler
-    public void onPlayerMove(PlayerMoveEvent e) {
-        Player p = e.getPlayer();
-        Nerd n = plugin.getNerd(p.getUniqueId());
-        if(n==null || !n.isDead()) {return;}
-        if(!p.isFlying()) { p.setFlying(true); }
-    }
+//    @EventHandler
+//    public void onPlayerMove(PlayerMoveEvent e) {
+//        Player p = e.getPlayer();
+//        Nerd n = plugin.getNerd(p.getUniqueId());
+//        if(n==null || !n.isDead()) {return;}
+//        if(p.isFlying()) { return; }
+//        if(e.getTo().getY() < e.getFrom().getY() && (!p.isSneaking() || e.getFrom().subtract(0, 1, 0).getBlock().getType().isAir())) {
+//            e.getTo().setY(e.getFrom().getY());
+//            p.setAllowFlight(true);
+//            p.setFlying(true);
+//        }
+//    }
 
 
 

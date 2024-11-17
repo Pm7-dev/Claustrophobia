@@ -105,12 +105,9 @@ public class Nerd implements ConfigurationSerializable {
         Player p = Bukkit.getPlayer(uuid);
         if(p == null) { return; }
 
-        // Play a cool little effect :D
-        World world = p.getWorld();
-        world.strikeLightningEffect(p.getLocation());
-
         // Drop the player's inventory if keep inv is off
-        if(p.getWorld().getGameRuleValue(GameRule.KEEP_INVENTORY) == Boolean.FALSE) {
+        World world = p.getWorld();
+        if(world.getGameRuleValue(GameRule.KEEP_INVENTORY) == Boolean.FALSE) {
             Inventory inv = p.getInventory();
             Location loc = p.getLocation();
             double power = 0.2D;
@@ -146,7 +143,7 @@ public class Nerd implements ConfigurationSerializable {
         }
 
         // Add them to the dead player team
-        SpectatorManager.addPlayerToScoreboard(p);
+        SpectatorManager.addPlayerToDeathScoreboard(p);
 
         // Add a little upwards velocity
         Vector v = p.getVelocity().add(new Vector(0, 0.8, 0));
@@ -197,19 +194,15 @@ public class Nerd implements ConfigurationSerializable {
             }
         }
 
-        // Count the amount of needed votes to revive
+        // Count the new amount of needed votes to revive in case it changed from this death
         int neededVotes = 0;
         for(Nerd count : plugin.getNerds()) { if(!count.isDead()) {neededVotes++;} }
         neededVotes = (int) (neededVotes *  ((float) config.getInt("reviveVotePercentage")/100));
         if(neededVotes == 0) {neededVotes++;}
 
         for(Nerd nerd : plugin.getNerds()) {
-
-            // Once someone dies, their votes should not count
-            nerd.getVotes().remove(uuid.toString());
-
-            // Check all nerds to see if this death pushed them over the line to be revived
-            if(votes.size() >= neededVotes) { revive(); }
+            nerd.getVotes().remove(uuid.toString()); // Since this player is dead, their vote does not count
+            if(nerd.getVotes().size() >= neededVotes) { nerd.revive(); } // In case the death lowered the required amount of votes
         }
 
         plugin.savePlayerData(); // Probably important enough of a change to require this
@@ -256,7 +249,7 @@ public class Nerd implements ConfigurationSerializable {
         p.setFreezeTicks(0);
 
         // Remove them from the dead player team
-        SpectatorManager.removePlayerFromScoreboard(p);
+        SpectatorManager.removePlayerFromDeathScoreboard(p);
 
         // Remove all player potion effects (in case they have the darkness of the border for some reason)
         for(PotionEffect pe : p.getActivePotionEffects()) { p.removePotionEffect(pe.getType()); }

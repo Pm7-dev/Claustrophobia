@@ -1,4 +1,6 @@
 me\pm7\claustrophobia\Listeners\Border.class
+me\pm7\claustrophobia\Listeners\NetherPortal.class
+me\pm7\claustrophobia\Commands\claustrophobiainfo.class
 me\pm7\claustrophobia\DataManager.class
 me\pm7\claustrophobia\Claustrophobia$3.class
 me\pm7\claustrophobia\Objects\VoteMenuHolder.class

@@ -14,13 +14,20 @@ public class claustrophobiainfo implements CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        sender.sendMessage(ChatColor.GOLD + "How to play Claustrophobia:");
+        sender.sendMessage("");
+        sender.sendMessage("");
+        sender.sendMessage("");
+        sender.sendMessage("");
+        sender.sendMessage("");
+        sender.sendMessage("");
+        sender.sendMessage("");
+        sender.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "How to play Claustrophobia:");
         sender.sendMessage(ChatColor.GOLD + "1. Don't die");
         sender.sendMessage(ChatColor.GOLD + "2. Make alliances");
         sender.sendMessage(ChatColor.GOLD + "3. Cause mischief");
         sender.sendMessage(ChatColor.GOLD + "4. If one of your friends die, use /votemenu to revive them");
         sender.sendMessage(ChatColor.GOLD + "5. If one of your enemies die, don't use /votemenu to revive them");
-        sender.sendMessage(ChatColor.GOLD + "6. If you die, have friends that will revive you");
+        sender.sendMessage(ChatColor.GOLD + "6. If you die, hope you have allies that will revive you");
 
         String time;
         long waitMinutes = config.getLong("deathTime");
@@ -30,7 +37,7 @@ public class claustrophobiainfo implements CommandExecutor {
         if (minutes != 0) {
             if (minutes == 1) {time += " and 1 minute";} else {time += " and " + minutes + " minutes";}
         }
-        sender.sendMessage(ChatColor.GRAY + "If you die, you will have to wait " + time + ", after which you will be put up for vote. Once " + config.getInt("reviveVotePercentage") + "% of players have voted for your revival, you will be able to respawn. You can vote/unvote players with the /votemenu command. Click the slimeball to vote a player, and the fire charge to unvote a player.");
+        sender.sendMessage(ChatColor.GRAY + " If you die, you will have to wait " + time + ", after which you will be put up for vote. Once " + config.getInt("reviveVotePercentage") + "% of players have voted for your revival, you will be able to respawn. You can vote/unvote players with the /votemenu command. Click the slimeball to vote a player, and the fire charge to unvote a player.");
         return true;
     }
 }

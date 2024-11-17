@@ -9,14 +9,15 @@ import net.md_5.bungee.api.chat.ComponentBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.GameMode;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 
 public class Connections implements Listener {
-    private final Claustrophobia plugin = Claustrophobia.getPlugin();
-    private final DataManager dm = Claustrophobia.getData();
+    private static final Claustrophobia plugin = Claustrophobia.getPlugin();
+    private static final DataManager dm = Claustrophobia.getData();
 
     @EventHandler
     public void OnPlayerJoin(PlayerJoinEvent e) {
@@ -26,12 +27,17 @@ public class Connections implements Listener {
         Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
             if(p.getClientViewDistance() <= 3) {
                 p.sendMessage(ChatColor.RED + "Warning: This plugin requires a render distance of at least 4 to function properly with a 100x100 border (higher if larger). A minimum of 7 render distance is recommended.");
+                p.playSound(p, Sound.BLOCK_ANVIL_LAND, 500, 1.6f);
             } else if (p.getClientViewDistance() <= 6) {
                 p.sendMessage(ChatColor.RED + "Warning: For the best experience this plugin recommends a render distance of at least 7 with a 100x100 border (higher if larger).");
+                p.playSound(p, Sound.BLOCK_ANVIL_LAND, 500, 1.6f);
             }
-        }, 10L);
+        }, 50L);
 
+        checkPlayerDataOnLoad(p);
+    }
 
+    public static void checkPlayerDataOnLoad(Player p) {
         Nerd nerd = plugin.getNerd(p.getUniqueId());
         if(nerd != null) {
             // Check for a name change
@@ -46,12 +52,15 @@ public class Connections implements Listener {
             nerd.spawn(); // put new player at a random spot on the map
 
             // send player a thing to prompt to tell them how to play
-            BaseComponent[] component = new ComponentBuilder()
-                    .append("Welcome to Claustrophobia! Click this message to learn how to play")
-                    .color(ChatColor.GREEN.asBungee()).bold(true)
-                    .event(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/claustrophobiainfo"))
-                    .create();
-            p.spigot().sendMessage(component);
+            Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+                BaseComponent[] component = new ComponentBuilder()
+                        .append("Welcome to Claustrophobia! Click this message to learn how to play")
+                        .color(ChatColor.GREEN.asBungee()).bold(true)
+                        .event(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/claustrophobiainfo"))
+                        .create();
+                p.spigot().sendMessage(component);
+                p.playSound(p, Sound.BLOCK_NOTE_BLOCK_HAT, 500, 0.5f);
+            }, 20L);
 
             plugin.savePlayerData();
         }
@@ -87,12 +96,9 @@ public class Connections implements Listener {
                 }
             }
 
-            // convenience
-            p.setGameMode(GameMode.SURVIVAL);
             p.setAllowFlight(false);
             p.setCollidable(true);
             p.setInvulnerable(false);
-            //p.removePotionEffect(PotionEffectType.INVISIBILITY);
             p.setInvisible(false);
         }
     }

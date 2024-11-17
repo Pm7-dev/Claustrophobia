@@ -1,10 +1,7 @@
 package me.pm7.claustrophobia;
 
 import me.pm7.claustrophobia.Commands.*;
-import me.pm7.claustrophobia.Listeners.Connections;
-import me.pm7.claustrophobia.Listeners.Death;
-import me.pm7.claustrophobia.Listeners.SpectatorManager;
-import me.pm7.claustrophobia.Listeners.Border;
+import me.pm7.claustrophobia.Listeners.*;
 import me.pm7.claustrophobia.Objects.Nerd;
 import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -56,8 +53,14 @@ public final class Claustrophobia extends JavaPlugin {
             }
         }
 
+        // If some owner is using /reload, this will make sure (*) that nothing breaks=
+        for(Player p : Bukkit.getOnlinePlayers()) {
+            Connections.checkPlayerDataOnLoad(p);
+        }
+
         // Listeners and commands do be registered
         getServer().getPluginManager().registerEvents(new SpectatorManager(), plugin);
+        getServer().getPluginManager().registerEvents(new NetherPortal(), plugin);
         getServer().getPluginManager().registerEvents(new Connections(), plugin);
         getServer().getPluginManager().registerEvents(new Border(), plugin);
         getServer().getPluginManager().registerEvents(new Death(), plugin);

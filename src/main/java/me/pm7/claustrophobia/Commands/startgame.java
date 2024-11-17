@@ -42,6 +42,7 @@ public class startgame implements CommandExecutor {
         loc.setY(0f);
         loc.setYaw(0f);
         dm.getConfig().set("gameLocation", loc);
+        loc.getWorld().setSpawnLocation(loc);
         config.set("borderSize", borderSize);
         plugin.saveConfig(); // game loc has to be set before walls can be set up
 

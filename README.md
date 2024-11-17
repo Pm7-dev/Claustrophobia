@@ -51,6 +51,12 @@ server and change the desired value in the plugin's `config.yml` file.
 - If you want to change the center of the border, close the server and edit the plugin's `data.yml` file. Change the 
 x and z values in the `gameLocation` to change the center of the border.
 
+## Other bits and/or bobs
+There is currently one singular bit or bob. Because the overworld does not use a normal minecraft border, Exiting a 
+nether portal will teleport the player to a random safe location on the map (using the same method that determines where 
+revived players spawn). If I didn't do this, players would be able to generate a nether portal outside the border and
+would immediately die.
+
 # Feature Requests and Bugs
 If you have an idea for a feature to add to this game, or have found a bug that needs to be fixed, feel free to make an
 issue on the [issues page](https://github.com/Pm7-dev/Claustrophobia/issues)!
