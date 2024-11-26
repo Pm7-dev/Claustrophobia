@@ -34,14 +34,14 @@ public final class Claustrophobia extends JavaPlugin {
         config = getConfig();
 
         // Check for plugin updates
-//        new UpdateCheck(this, 0).getVersion(version -> {
-//            if (!this.getDescription().getVersion().equals(version)) {
-//                getLogger().warning("There is a new Claustrophobia update available!");
-//                getLogger().warning("");
-//                getLogger().warning("The latest version is " + version);
-//                getLogger().warning("It is recommended that you look at the changelog for the latest version, as it may have some important changes/bug fixes");
-//            }
-//        });
+        new UpdateCheck(this, 120980).getVersion(version -> {
+            if (!this.getDescription().getVersion().equals(version)) {
+                getLogger().warning("There is a new Claustrophobia update available!");
+                getLogger().warning("");
+                getLogger().warning("The latest version is " + version);
+                getLogger().warning("It is recommended that you look at the changelog for the latest version, as it may have some important changes/bug fixes");
+            }
+        });
 
         config.options().copyDefaults(true);
         saveDefaultConfig();
