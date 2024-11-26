@@ -33,6 +33,16 @@ public final class Claustrophobia extends JavaPlugin {
         data = dm.getConfig();
         config = getConfig();
 
+        // Check for plugin updates
+//        new UpdateCheck(this, 0).getVersion(version -> {
+//            if (!this.getDescription().getVersion().equals(version)) {
+//                getLogger().warning("There is a new Claustrophobia update available!");
+//                getLogger().warning("");
+//                getLogger().warning("The latest version is " + version);
+//                getLogger().warning("It is recommended that you look at the changelog for the latest version, as it may have some important changes/bug fixes");
+//            }
+//        });
+
         config.options().copyDefaults(true);
         saveDefaultConfig();
         saveConfig();
@@ -130,21 +140,26 @@ public final class Claustrophobia extends JavaPlugin {
         Location loc = data.getLocation("gameLocation");
         if(loc == null) {return;}
 
+        // Display the death time left / amount of votes a dead player has, and tick up their minutes every minute
         for (Nerd nerd : nerds) {
-
-            Player p = Bukkit.getPlayer(nerd.getUuid());
-            if (p == null) { continue; }
-
-            // Display the death time left / amount of votes a dead player has, and tick up their minutes every minute
             if(nerd.isDead()) {
                 if (nerd.isVotable()) {
+
+                    // Send an actionbar telling them how many votes they have
+                    Player p = Bukkit.getPlayer(nerd.getUuid());
+                    if (p == null) { continue; }
                     int neededVotes = 0;
                     for(Nerd n : nerds) { if(!n.isDead()) {neededVotes++;} }
                     neededVotes = (int) (neededVotes *  ((float) config.getInt("reviveVotePercentage")/100));
                     if(neededVotes == 0) {neededVotes++;}
                     p.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy(ChatColor.GREEN + "You have " + nerd.getVotes().size() + "/" + neededVotes + " votes"));
+
                 } else {
                     if (deadLoopTick == 1) { nerd.addMinute(); } // add a minute each minute
+
+                    // Send an actionbar telling them what their current time is
+                    Player p = Bukkit.getPlayer(nerd.getUuid());
+                    if (p == null) { continue; }
                     long waitMinutes = config.getLong("deathTime");
                     int hours = (int) ((waitMinutes - nerd.getMinutes()) / 60);
                     int minutes = (int) ((waitMinutes - nerd.getMinutes()) % 60);
